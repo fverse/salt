@@ -1,6 +1,4 @@
 const std = @import("std");
+const clap = @import("clap");
 
-pub fn main() !void {
-    // Prints to stderr (it's a shortcut based on `std.io.getStdErr()`)
-    std.debug.print("Hello, World!\n", .{});
-}
+pub fn main() !void {}
