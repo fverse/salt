@@ -16,8 +16,6 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
-    const clap = b.dependency("clap", .{});
-
     // This creates another `std.Build.Step.Compile`, but this one builds an executable
     // rather than a static library.
     const exe = b.addExecutable(.{
@@ -25,6 +23,8 @@ pub fn build(b: *std.Build) void {
         .root_module = exe_mod,
     });
 
+    // Add clap
+    const clap = b.dependency("clap", .{});
     exe.root_module.addImport("clap", clap.module("clap"));
 
     // This declares intent for the executable to be installed into the
