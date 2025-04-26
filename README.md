@@ -1,3 +1,3 @@
 ## Salt
 
-Salt is a git submodules alternative 
+Branch-aware Git submodule alternative
