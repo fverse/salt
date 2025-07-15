@@ -1,0 +1,12 @@
+[submodule: "protobuf"]
+    path = protobuf
+	url = ../protobuf.git
+    default_branch = development
+    branches: {
+        dev: dev
+        staging: stage
+        production: release
+    }
+
+[dir: "models"]
+    path = models
