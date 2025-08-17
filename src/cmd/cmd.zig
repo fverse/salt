@@ -4,7 +4,7 @@ const clap = @import("clap");
 const Commands = enum {
     help,
     init,
-    // TODO: add,
+    add,
 };
 
 pub const main_parsers = .{
@@ -26,6 +26,24 @@ pub fn printUsage() !void {
         \\
         \\Commands:
         \\  init <path>    Initializes an empty salt project. 
+        \\  add <url>      Adds a submodule to the project.
+        \\  help           Display this help and exit.
+        \\  pull           Pull changes from a submodule.
+        \\  push           Push changes to a submodule.
+        \\  status         Display the status of submodules.
+        \\  mirror         Mirror a submodule.
         \\
     );
+}
+
+pub fn parseCommandArgs(comptime T: type, allocator: std.mem.Allocator, iter: *std.process.ArgIterator, params: anytype) !MainArgs {
+    var diag = clap.Diagnostic{};
+    const res = clap.parseEx(T, params, clap.parsers.default, iter, .{
+        .diagnostic = &diag,
+        .allocator = allocator,
+    }) catch |err| {
+        diag.report(std.io.getStdErr().writer(), err) catch {};
+        return err;
+    };
+    return res;
 }

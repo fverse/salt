@@ -40,7 +40,7 @@ pub fn init(allocator: std.mem.Allocator, iter: *std.process.ArgIterator, main_a
     var config_path: ?[]const u8 = null;
     defer if (config_path) |path| allocator.free(path);
 
-    var config_path_value: []const u8 = "Saltfile";
+    var config_path_value: []const u8 = "salt.conf";
 
     // Check if config file exists
     if (res.args.path) |path| {
@@ -52,7 +52,7 @@ pub fn init(allocator: std.mem.Allocator, iter: *std.process.ArgIterator, main_a
             }
         };
 
-        config_path = try std.fs.path.join(allocator, &[_][]const u8{ path, "Saltfile" });
+        config_path = try std.fs.path.join(allocator, &[_][]const u8{ path, "salt.conf" });
         config_path_value = config_path.?;
     }
 
@@ -68,7 +68,7 @@ fn printInitCmdHelp() !void {
         \\Usage: salt init <options>
         \\
         \\Description:
-        \\  This command will create a Saltfile that holds the submodule config.
+        \\  This command will create a salt.conf that holds the submodule config.
         \\
         \\Options:
         \\  -h, --help           Display this help and exit.

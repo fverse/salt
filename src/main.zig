@@ -3,6 +3,7 @@ const clap = @import("clap");
 const Config = @import("config.zig").Config;
 const cmd = @import("cmd/cmd.zig");
 const init = @import("cmd/init.zig").init;
+const add = @import("cmd/add.zig").add;
 
 pub fn main() !void {
     var gpa_state = std.heap.GeneralPurposeAllocator(.{}){};
@@ -36,5 +37,6 @@ pub fn main() !void {
     switch (command) {
         .help => try cmd.printUsage(),
         .init => try init(gpa, &iter, res),
+        .add => try add(gpa, &iter, res),
     }
 }
