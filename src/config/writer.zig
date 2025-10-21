@@ -14,17 +14,22 @@ pub const Writer = struct {
         };
     }
 
-    /// Write config to a file
+    /// Write config to a file atomically using a temporary file
     pub fn writeFile(self: *Writer, config: *const SubmoduleConfig, file_path: []const u8) !void {
-        const tmp_path = try std.fmt.allocPrint(self.allocator, "{s}.tmp", .{file_path});
+        // Create a temporary file with a unique name
+        const tmp_path = try std.fmt.allocPrint(self.allocator, "{s}.tmp.{d}", .{ file_path, std.time.milliTimestamp() });
         defer self.allocator.free(tmp_path);
 
         const tmp_file = try std.fs.cwd().createFile(tmp_path, .{});
-        defer tmp_file.close();
+        errdefer {
+            tmp_file.close();
+            std.fs.cwd().deleteFile(tmp_path) catch {};
+        }
 
         try self.writeConfig(tmp_file.writer(), config);
 
         try tmp_file.sync();
+        tmp_file.close();
 
         try std.fs.cwd().rename(tmp_path, file_path);
     }
@@ -61,7 +66,7 @@ pub const Writer = struct {
         try writer.print("{s}default_branch = {s}\n", .{ indent, submodule.default_branch });
 
         // Write branches block if any exist
-        if (submodule.branches.count() > 0) {
+        if (submodule.branch_mappings.count() > 0) {
             try writer.print("{s}branches = {{\n", .{indent});
             try self.writeBranches(writer, submodule, indent);
             try writer.print("{s}}}\n", .{indent});
@@ -69,10 +74,25 @@ pub const Writer = struct {
     }
 
     fn writeBranches(self: *Writer, writer: anytype, submodule: *const Submodule, indent: []const u8) !void {
-        _ = self;
-        var iter = submodule.branches.iterator();
+        // Collect all branch mappings into a list for sorting
+        var mappings = std.ArrayList(struct { key: []const u8, value: []const u8 }).init(self.allocator);
+        defer mappings.deinit();
+
+        var iter = submodule.branch_mappings.iterator();
         while (iter.next()) |entry| {
-            try writer.print("{s}    {s} -> {s}\n", .{ indent, entry.key_ptr.*, entry.value_ptr.* });
+            try mappings.append(.{ .key = entry.key_ptr.*, .value = entry.value_ptr.* });
+        }
+
+        // Sort mappings by key for consistent output
+        std.mem.sort(@TypeOf(mappings.items[0]), mappings.items, {}, struct {
+            fn lessThan(_: void, a: @TypeOf(mappings.items[0]), b: @TypeOf(mappings.items[0])) bool {
+                return std.mem.lessThan(u8, a.key, b.key);
+            }
+        }.lessThan);
+
+        // Write sorted mappings
+        for (mappings.items) |mapping| {
+            try writer.print("{s}    {s} -> {s}\n", .{ indent, mapping.key, mapping.value });
         }
     }
 

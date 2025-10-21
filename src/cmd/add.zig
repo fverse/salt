@@ -2,6 +2,9 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 const clap = @import("clap");
 const Submodule = @import("../config/types.zig").Submodule;
+const SubmoduleConfig = @import("../config/types.zig").SubmoduleConfig;
+const Parser = @import("../config/parser.zig").Parser;
+const Writer = @import("../config/writer.zig").Writer;
 const utils = @import("../config/utils.zig");
 
 fn extractRepoName(url: []const u8) []const u8 {
@@ -63,12 +66,31 @@ pub fn execute(allocator: std.mem.Allocator, iter: *std.process.ArgIterator) !vo
 
     try utils.createSaltFile();
 
+    // Load existing configuration
+    var parser = Parser.init(allocator);
+    defer parser.deinit();
+
+    var config = parser.parseFile("salt.conf") catch |err| blk: {
+        if (err == error.FileNotFound) {
+            break :blk SubmoduleConfig.init(allocator);
+        } else {
+            return err;
+        }
+    };
+    defer config.deinit();
+
+    // Create new submodule
     var submodule = Submodule.init(allocator);
     try submodule.setName(dir);
     try submodule.setPath(dir);
     try submodule.setUrl(url);
     try submodule.setDefaultBranch("main");
-    try submodule.addToSaltfile(allocator);
+
+    // Add to configuration
+    try config.addSubmodule(submodule);
+
+    var writer = Writer.init(allocator);
+    try writer.writeFile(&config, "salt.conf");
 
     // TODO: may be auto commit the changes after adding the submodule
     // better consider a config option for this

@@ -7,6 +7,7 @@ const Submodule = types.Submodule;
 pub const Parser = struct {
     allocator: std.mem.Allocator,
     arena: std.heap.ArenaAllocator,
+    current_line: usize,
 
     const ParseError = error{
         InvalidSyntax,
@@ -14,6 +15,7 @@ pub const Parser = struct {
         MissingValue,
         UnterminatedString,
         UnterminatedBlock,
+        MissingRequiredField,
         OutOfMemory,
     };
 
@@ -21,11 +23,17 @@ pub const Parser = struct {
         return .{
             .allocator = allocator,
             .arena = std.heap.ArenaAllocator.init(allocator),
+            .current_line = 0,
         };
     }
 
     pub fn deinit(self: *Parser) void {
         self.arena.deinit();
+    }
+
+    fn parseError(self: *Parser, comptime fmt: []const u8, args: anytype) ParseError {
+        std.debug.print("Parse error at line {d}: " ++ fmt ++ "\n", .{self.current_line} ++ args);
+        return ParseError.InvalidSyntax;
     }
 
     pub fn parseFile(self: *Parser, file_path: []const u8) !SubmoduleConfig {
@@ -51,12 +59,17 @@ pub const Parser = struct {
         var current_submodule: ?Submodule = null;
         var in_branches_block = false;
         var branches_indent: usize = 0;
+        self.current_line = 0;
 
         while (lines.next()) |line| {
-            const trimmed = std.mem.trim(u8, line, " \t\r");
+            self.current_line += 1;
+
+            // Remove inline comments (but not inside quotes)
+            const line_without_comment = self.removeInlineComment(line);
+            const trimmed = std.mem.trim(u8, line_without_comment, " \t\r");
+
             if (trimmed.len == 0) continue;
 
-            // Check for comment
             if (std.mem.startsWith(u8, trimmed, "#")) continue;
 
             // Count leading spaces for indentation
@@ -64,13 +77,17 @@ pub const Parser = struct {
 
             // Check if we're starting a new submodule
             if (std.mem.startsWith(u8, trimmed, "[submodule")) {
-                // Save previous submodule if exists
-                if (current_submodule) |sub| {
-                    try conf.addSubmodule(sub);
+                // Validate and save previous submodule if exists
+                if (current_submodule) |*sub| {
+                    try self.validateSubmodule(sub);
+                    try conf.addSubmodule(sub.*);
                 }
 
                 // Parse submodule name
-                const name = try self.extractSubmoduleName(trimmed);
+                const name = self.extractSubmoduleName(trimmed) catch |err| {
+                    std.debug.print("Parse error at line {d}: Failed to extract submodule name\n", .{self.current_line});
+                    return err;
+                };
                 current_submodule = Submodule.init(self.allocator);
                 current_submodule.?.name = try self.arena.allocator().dupe(u8, name);
                 in_branches_block = false;
@@ -89,13 +106,19 @@ pub const Parser = struct {
             // Parse branch mappings inside branches block
             else if (in_branches_block and current_submodule != null) {
                 if (indent >= branches_indent) {
-                    const mapping = try self.parseBranchMapping(trimmed);
+                    const mapping = self.parseBranchMapping(trimmed) catch |err| {
+                        std.debug.print("Parse error at line {d}: Invalid branch mapping syntax\n", .{self.current_line});
+                        return err;
+                    };
                     const env_key = try self.arena.allocator().dupe(u8, mapping.env);
                     const branch_value = try self.arena.allocator().dupe(u8, mapping.branch);
-                    try current_submodule.?.branches.put(env_key, branch_value);
+                    try current_submodule.?.branch_mappings.put(env_key, branch_value);
                 }
             } else if (current_submodule != null) {
-                const kv = try self.parseKeyValue(trimmed);
+                const kv = self.parseKeyValue(trimmed) catch |err| {
+                    std.debug.print("Parse error at line {d}: Invalid key-value syntax\n", .{self.current_line});
+                    return err;
+                };
                 const value = try self.arena.allocator().dupe(u8, kv.value);
 
                 if (std.mem.eql(u8, kv.key, "path")) {
@@ -108,12 +131,34 @@ pub const Parser = struct {
             }
         }
 
-        // Add the last submodule if exists
-        if (current_submodule) |sub| {
-            try conf.addSubmodule(sub);
+        // Validate and add the last submodule if exists
+        if (current_submodule) |*sub| {
+            try self.validateSubmodule(sub);
+            try conf.addSubmodule(sub.*);
         }
 
         return conf;
+    }
+
+    /// Validate that a submodule has all required fields
+    fn validateSubmodule(self: *Parser, submodule: *const Submodule) !void {
+        _ = self;
+        if (submodule.name.len == 0) {
+            std.debug.print("Parse error: Submodule missing required field 'name'\n", .{});
+            return ParseError.MissingRequiredField;
+        }
+        if (submodule.path.len == 0) {
+            std.debug.print("Parse error: Submodule '{s}' missing required field 'path'\n", .{submodule.name});
+            return ParseError.MissingRequiredField;
+        }
+        if (submodule.url.len == 0) {
+            std.debug.print("Parse error: Submodule '{s}' missing required field 'url'\n", .{submodule.name});
+            return ParseError.MissingRequiredField;
+        }
+        if (submodule.default_branch.len == 0) {
+            std.debug.print("Parse error: Submodule '{s}' missing required field 'default_branch'\n", .{submodule.name});
+            return ParseError.MissingRequiredField;
+        }
     }
 
     /// Extract submodule name from [submodule "name"] line
@@ -191,5 +236,28 @@ pub const Parser = struct {
         }
 
         return result;
+    }
+
+    /// Remove inline comments from a line (but preserve # inside quotes)
+    fn removeInlineComment(self: *Parser, line: []const u8) []const u8 {
+        _ = self;
+        var in_quotes = false;
+        var quote_char: u8 = 0;
+
+        for (line, 0..) |char, i| {
+            if (char == '"' or char == '\'') {
+                if (!in_quotes) {
+                    in_quotes = true;
+                    quote_char = char;
+                } else if (char == quote_char) {
+                    in_quotes = false;
+                }
+            } else if (char == '#' and !in_quotes) {
+                // Found a comment outside quotes
+                return line[0..i];
+            }
+        }
+
+        return line;
     }
 };
