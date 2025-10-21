@@ -1,9 +1,7 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 const clap = @import("clap");
-const MainArgs = @import("./cmd.zig").MainArgs;
-const SubmoduleConfig = @import("../config.zig").SubmoduleConfig;
-const Submodule = @import("../config.zig").Submodule;
+const Submodule = @import("../config/types.zig").Submodule;
 const utils = @import("../config/utils.zig");
 
 fn extractRepoName(url: []const u8) []const u8 {
@@ -27,9 +25,7 @@ fn extractRepoName(url: []const u8) []const u8 {
     return working_url;
 }
 
-pub fn addSubmodule(allocator: std.mem.Allocator, iter: *std.process.ArgIterator, main_args: MainArgs) !void {
-    _ = main_args;
-
+pub fn execute(allocator: std.mem.Allocator, iter: *std.process.ArgIterator) !void {
     const params = comptime clap.parseParamsComptime(
         \\-h, --help                Display this help and exit.
         \\<str>                     Repository URL.
@@ -48,7 +44,7 @@ pub fn addSubmodule(allocator: std.mem.Allocator, iter: *std.process.ArgIterator
     defer res.deinit();
 
     if (res.args.help != 0) {
-        try printInitHelp();
+        try printHelp();
         return;
     }
 
@@ -78,7 +74,7 @@ pub fn addSubmodule(allocator: std.mem.Allocator, iter: *std.process.ArgIterator
     // better consider a config option for this
 }
 
-fn printInitHelp() !void {
+fn printHelp() !void {
     const stdout = std.io.getStdOut().writer();
     try stdout.writeAll(
         \\salt add - Add a new submodule
@@ -97,10 +93,6 @@ fn printInitHelp() !void {
         \\  -b, --branch             Clone a specific branch instead of default.
         \\
     );
-}
-
-pub fn add(allocator: std.mem.Allocator, iter: *std.process.ArgIterator, main_args: MainArgs) !void {
-    try addSubmodule(allocator, iter, main_args);
 }
 
 pub fn cloneGitRepository(allocator: std.mem.Allocator, url: []const u8, dest_dir: []const u8) !void {

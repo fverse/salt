@@ -1,10 +1,9 @@
 const std = @import("std");
-const SubmoduleConfig = @import("../config.zig").SubmoduleConfig;
-const Submodule = @import("../config.zig").Submodule;
-const Parser = @import("../parser/salt.zig").Parser;
-const utils = @import("./utils.zig");
+const types = @import("./types.zig");
+const SubmoduleConfig = types.SubmoduleConfig;
+const Submodule = types.Submodule;
+const Parser = @import("./parser.zig").Parser;
 
-/// Writer for salt.conf configuration
 pub const Writer = struct {
     allocator: std.mem.Allocator,
 
@@ -43,7 +42,6 @@ pub const Writer = struct {
         }
     }
 
-    /// Write a basic header
     pub fn writeSaltfileHeader(_: *Writer, writer: anytype) !void {
         try writer.writeAll("# salt.conf - Submodule configuration\n");
         // TODO: write parent repository information like
