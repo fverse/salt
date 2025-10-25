@@ -13,6 +13,8 @@ pub const Submodule = struct {
     url: []const u8,
     /// Default branch to use
     default_branch: []const u8,
+    /// Use shallow clone (default: true)
+    shallow: bool,
     /// Branch mappings (parent_branch -> submodule_branch)
     branch_mappings: BranchMappings,
     /// Allocator used for this submodule's memory
@@ -24,6 +26,7 @@ pub const Submodule = struct {
             .path = "",
             .url = "",
             .default_branch = "",
+            .shallow = true,
             .branch_mappings = BranchMappings.init(allocator),
             .allocator = allocator,
         };
