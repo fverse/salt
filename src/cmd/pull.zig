@@ -1,104 +1,194 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-const Config = @import("../config.zig").Config;
-const git = @import("../git.zig");
-const process = @import("../utils/process.zig");
+const config_parser = @import("../config/parser.zig");
+const config_types = @import("../config/types.zig");
+const state_mod = @import("../core/state.zig");
+const git = @import("../git/operations.zig");
+const fs = @import("../utils/fs.zig");
 
-const PullError = error{
-    SubprojectNotFound,
-    BranchCheckoutFailed,
-    PullFailed,
+const PullOptions = struct {
+    parallel: bool = false,
+    ci_mode: bool = false,
+    quiet: bool = false,
 };
 
-/// Pull changes from a subproject
-pub fn pull(allocator: Allocator, args: []const []const u8) !void {
-    const config_path = "zigdep.toml";
-    const stdout = std.io.getStdOut().writer();
+pub fn execute(allocator: Allocator, args: *std.process.ArgIterator) !void {
+    var options = PullOptions{};
+    var submodule_name: ?[]const u8 = null;
 
-    // Load config
-    var config = try Config.loadFromFile(allocator, config_path);
+    while (args.next()) |arg| {
+        if (std.mem.eql(u8, arg, "--parallel")) {
+            options.parallel = true;
+        } else if (std.mem.eql(u8, arg, "--ci")) {
+            options.ci_mode = true;
+        } else if (std.mem.eql(u8, arg, "--quiet") or std.mem.eql(u8, arg, "-q")) {
+            options.quiet = true;
+        } else if (std.mem.eql(u8, arg, "--help") or std.mem.eql(u8, arg, "-h")) {
+            try printHelp();
+            return;
+        } else if (!std.mem.startsWith(u8, arg, "-")) {
+            if (submodule_name == null) {
+                submodule_name = arg;
+            }
+        }
+    }
+
+    var parser = config_parser.Parser.init(allocator);
+    defer parser.deinit();
+
+    var config = parser.parseFile("salt.conf") catch |err| {
+        const stderr = std.io.getStdErr().writer();
+        try stderr.print("Error: Failed to load salt.conf: {}\n", .{err});
+        if (options.ci_mode) {
+            std.process.exit(2);
+        }
+        return err;
+    };
     defer config.deinit();
 
-    // Get current branch in superproject
-    const super_branch = try git.getCurrentBranch(allocator, ".");
-    defer allocator.free(super_branch);
+    var sync_state = try state_mod.SyncState.load(allocator);
+    defer sync_state.deinit();
 
-    try stdout.print("Current superproject branch: {s}\n", .{super_branch});
+    var success_count: usize = 0;
+    var skipped_count: usize = 0;
+    var failed_count: usize = 0;
 
-    if (args.len == 0) {
-        // Pull from all subprojects
-        for (config.subprojects.items) |subproject| {
-            try stdout.print("\nPulling from subproject: {s}\n", .{subproject.name});
-            pullFromSubproject(allocator, &config, subproject.name, super_branch) catch |err| {
-                try stdout.print("Error pulling from {s}: {any}\n", .{ subproject.name, err });
-            };
+    // Pull submodules
+    if (submodule_name) |name| {
+        const submodule = config.findByName(name) orelse {
+            const stderr = std.io.getStdErr().writer();
+            try stderr.print("Error: Submodule '{s}' not found\n", .{name});
+            if (options.ci_mode) {
+                std.process.exit(2);
+            }
+            return error.SubmoduleNotFound;
+        };
+
+        pullSubmodule(allocator, submodule, &sync_state, options) catch |err| {
+            if (err == error.UncommittedChanges or err == error.MergeConflict) {
+                skipped_count += 1;
+            } else {
+                failed_count += 1;
+                if (options.ci_mode) {
+                    std.process.exit(3);
+                }
+            }
+        };
+        if (failed_count == 0 and skipped_count == 0) {
+            success_count += 1;
         }
     } else {
-        // Pull from specific subproject
-        const subproject_name = args[0];
-        try stdout.print("\nPulling from subproject: {s}\n", .{subproject_name});
-        try pullFromSubproject(allocator, &config, subproject_name, super_branch);
+        for (config.submodules.items) |*submodule| {
+            pullSubmodule(allocator, submodule, &sync_state, options) catch |err| {
+                if (err == error.UncommittedChanges or err == error.MergeConflict) {
+                    skipped_count += 1;
+                } else {
+                    failed_count += 1;
+                    if (options.ci_mode) {
+                        std.process.exit(3);
+                    }
+                }
+                continue;
+            };
+            success_count += 1;
+        }
+    }
+
+    if (!options.quiet) {
+        const stdout = std.io.getStdOut().writer();
+        try stdout.writeAll("\n");
+        try stdout.print("  Pulled: {} submodule(s)\n", .{success_count});
+        if (skipped_count > 0) {
+            try stdout.print("  Skipped: {} submodule(s)\n", .{skipped_count});
+        }
+        if (failed_count > 0) {
+            try stdout.print("  Failed: {} submodule(s)\n", .{failed_count});
+        }
     }
 }
 
-/// Pull changes from a specific subproject
-fn pullFromSubproject(allocator: Allocator, config: *const Config, subproject_name: []const u8, super_branch: []const u8) !void {
+fn pullSubmodule(
+    allocator: Allocator,
+    submodule: *const config_types.Submodule,
+    sync_state: *state_mod.SyncState,
+    options: PullOptions,
+) !void {
     const stdout = std.io.getStdOut().writer();
+    const stderr = std.io.getStdErr().writer();
 
-    // Find subproject in config
-    const subproject = config.getSubprojectByName(subproject_name) orelse
-        return PullError.SubprojectNotFound;
+    if (!options.quiet) {
+        try stdout.print("\nPulling '{s}'...\n", .{submodule.name});
+    }
 
-    // Find corresponding branch in subproject
-    const sub_branch = config.getSubprojectBranchMapping(subproject_name, super_branch) orelse
-        subproject.default_branch;
+    const source_path = try std.fmt.allocPrint(allocator, ".salt/repos/{s}", .{submodule.name});
+    defer allocator.free(source_path);
 
-    try stdout.print("Mapped to subproject branch: {s}\n", .{sub_branch});
+    if (!fs.pathExists(source_path)) {
+        try stderr.print("  Error: Source repository not found\n", .{});
+        return error.SourceRepoNotFound;
+    }
 
-    // Current working directory for later restoration
-    const cwd = try std.process.getCwdAlloc(allocator);
-    defer allocator.free(cwd);
+    const current_branch = try git.getCurrentBranch(allocator, source_path);
+    defer allocator.free(current_branch);
 
-    // Change to subproject directory
-    try std.os.chdir(subproject.path);
-    defer std.os.chdir(cwd) catch {};
+    if (!options.quiet) {
+        try stdout.print("  Current branch: {s}\n", .{current_branch});
+    }
 
-    // Checkout the correct branch
-    var result = try process.run(allocator, &[_][]const u8{ "git", "checkout", sub_branch });
+    var status_result = try git.executeGitCommand(allocator, &[_][]const u8{ "git", "-C", source_path, "status", "--porcelain" });
+    defer status_result.deinit(allocator);
 
-    if (result.exit_code != 0) {
-        try stdout.print("Failed to checkout branch {s}: {s}\n", .{ sub_branch, result.stderr });
-        allocator.free(result);
+    if (status_result.stdout.len > 0) {
+        try stderr.print("  ⚠ Skipping: Uncommitted changes\n", .{});
+        return error.UncommittedChanges;
+    }
 
-        // Try to create branch if it doesn't exist
-        try stdout.print("Attempting to create branch {s}...\n", .{sub_branch});
-        result = try process.run(allocator, &[_][]const u8{ "git", "checkout", "-b", sub_branch });
+    if (!options.quiet) {
+        try stdout.print("  Pulling from origin/{s}...\n", .{current_branch});
+    }
 
-        if (result.exit_code != 0) {
-            try stdout.print("Failed to create branch {s}: {s}\n", .{ sub_branch, result.stderr });
-            allocator.free(result);
-            return PullError.BranchCheckoutFailed;
+    git.pull(allocator, source_path, "origin", current_branch) catch |err| {
+        if (err == error.MergeConflict) {
+            try stderr.print("  ⚠ Merge conflict detected\n", .{});
+            return err;
         }
+        try stderr.print("  Error: Pull failed\n", .{});
+        return err;
+    };
+
+    if (!options.quiet) {
+        try stdout.print("  Copying files...\n", .{});
     }
-    allocator.free(result);
 
-    // Pull from remote
-    try stdout.print("Pulling changes from origin/{s}...\n", .{sub_branch});
-    result = try process.run(allocator, &[_][]const u8{ "git", "pull", "origin", sub_branch });
+    try fs.copyDirectory(allocator, source_path, submodule.path, .{ .exclude_git = true });
 
-    if (result.exit_code != 0) {
-        try stdout.print("Pull failed: {s}\n", .{result.stderr});
-        allocator.free(result);
-        return PullError.PullFailed;
+    try state_mod.updateAfterSync(sync_state, allocator, submodule.name, submodule.path, source_path, current_branch);
+
+    if (!options.quiet) {
+        try stdout.print("  ✓ Successfully pulled '{s}'\n", .{submodule.name});
     }
-    allocator.free(result);
+}
 
-    // Return to original directory
-    try std.os.chdir(cwd);
-
-    // Update superproject tracking
-    try stdout.print("Updating superproject tracking...\n", .{});
-    _ = try process.run(allocator, &[_][]const u8{ "git", "add", subproject.path });
-
-    try stdout.print("Successfully pulled changes for {s} from branch {s}\n", .{ subproject_name, sub_branch });
+fn printHelp() !void {
+    const stdout = std.io.getStdOut().writer();
+    try stdout.writeAll(
+        \\salt pull - Pull latest changes on current branches
+        \\
+        \\USAGE:
+        \\    salt pull [submodule-name] [options]
+        \\
+        \\DESCRIPTION:
+        \\    Pull the latest changes for submodules on their current branches.
+        \\
+        \\OPTIONS:
+        \\    --parallel          Pull submodules in parallel (not yet implemented)
+        \\    --ci                Fail fast on any error
+        \\    --quiet, -q         Suppress non-error output
+        \\    --help, -h          Display this help message
+        \\
+        \\EXAMPLES:
+        \\    salt pull
+        \\    salt pull submodulename
+        \\
+    );
 }
