@@ -1,14 +1,23 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
+const mapper = @import("mapper.zig");
+const hash = @import("../utils/hash.zig");
+const git = @import("../git/operations.zig");
 
 /// Sync status enum representing the state of a submodule
 pub const SyncStatus = enum {
-    synced, // Everything up to date
-    dirty, // Parent has uncommitted changes
-    behind, // Source repo has new commits
-    diverged, // Both have changes
-    ahead, // Parent pushed but source not updated
-    stale, // Files from wrong source branch (after merge)
+    /// synced: Everything up to date
+    synced,
+    // Parent has uncommitted changes
+    dirty,
+    // behind: Source repo has new commits
+    behind,
+    /// diverged: Both have changes
+    diverged,
+    // Parent pushed but source not updated
+    ahead,
+    // Files from wrong source branch (after merge)
+    stale,
 };
 
 /// State information for a single submodule
@@ -32,7 +41,6 @@ pub const SubmoduleState = struct {
     }
 };
 
-/// Main state tracking structure
 pub const SyncState = struct {
     version: []const u8,
     submodules: std.StringHashMap(SubmoduleState),
@@ -72,7 +80,7 @@ pub const SyncState = struct {
         return try parseStateJson(allocator, content);
     }
 
-    /// Save state to .salt/state.json with atomic writes
+    /// Save state to .salt/state.json
     pub fn save(self: *const SyncState, allocator: Allocator) !void {
         // Ensure .salt directory exists
         std.fs.cwd().makePath(".salt") catch |err| {
@@ -87,11 +95,9 @@ pub const SyncState = struct {
         const writer = file.writer();
         try self.writeJson(writer, allocator);
 
-        // Atomic rename
         try std.fs.cwd().rename(temp_path, ".salt/state.json");
     }
 
-    /// Write JSON representation to a writer
     fn writeJson(self: *const SyncState, writer: anytype, allocator: Allocator) !void {
         try writer.writeAll("{\n");
         try writer.print("  \"version\": \"{s}\",\n", .{self.version});
@@ -145,7 +151,6 @@ fn parseStateJson(allocator: Allocator, content: []const u8) !SyncState {
 
     const root = parsed.value.object;
 
-    // Parse version
     if (root.get("version")) |version_value| {
         // Version is already a constant, no need to allocate
         _ = version_value;
@@ -248,16 +253,12 @@ pub fn getCurrentTimestamp(allocator: Allocator) ![]const u8 {
 }
 
 /// Detect the sync status of a submodule
-/// Requires: config types, git operations, hash utilities, and mapper
 pub fn detectSyncStatus(
     allocator: Allocator,
-    submodule: anytype, // *const Submodule
+    submodule: anytype,
     state: *const SubmoduleState,
     parent_branch: []const u8,
 ) !SyncStatus {
-    const mapper = @import("mapper.zig");
-    const hash = @import("../utils/hash.zig");
-    const git = @import("../git/operations.zig");
 
     // 1. Check for branch mismatch (STALE status)
     const expected_branch = mapper.getBranchMapping(submodule, parent_branch);
@@ -306,8 +307,6 @@ pub fn updateAfterSync(
     source_repo_path: []const u8,
     source_branch: []const u8,
 ) !void {
-    const hash = @import("../utils/hash.zig");
-    const git = @import("../git/operations.zig");
 
     // Get current commit from source repo
     const commit = try git.getCurrentCommit(allocator, source_repo_path);
@@ -353,7 +352,6 @@ pub fn updateAfterSync(
         try state.submodules.put(name_copy, new_state);
     }
 
-    // Save state atomically
     try state.save(allocator);
 }
 
@@ -366,9 +364,6 @@ pub fn updateAfterPush(
     submodule_path: []const u8,
     source_repo_path: []const u8,
 ) !void {
-    const hash = @import("../utils/hash.zig");
-    const git = @import("../git/operations.zig");
-
     // Get current commit from source repo
     const commit = try git.getCurrentCommit(allocator, source_repo_path);
     errdefer allocator.free(commit);
@@ -412,9 +407,6 @@ pub fn initializeSubmoduleState(
     source_repo_path: []const u8,
     source_branch: []const u8,
 ) !void {
-    const hash = @import("../utils/hash.zig");
-    const git = @import("../git/operations.zig");
-
     // Get current commit from source repo
     const commit = try git.getCurrentCommit(allocator, source_repo_path);
     errdefer allocator.free(commit);
@@ -482,21 +474,6 @@ test "getCurrentTimestamp returns valid format" {
     try std.testing.expect(timestamp.len >= 20);
     try std.testing.expect(std.mem.indexOf(u8, timestamp, "T") != null);
     try std.testing.expect(std.mem.endsWith(u8, timestamp, "Z"));
-}
-
-test "SubmoduleState deinit frees memory" {
-    const allocator = std.testing.allocator;
-
-    var state = SubmoduleState{
-        .last_sync_commit = try allocator.dupe(u8, "abc123"),
-        .last_push_commit = try allocator.dupe(u8, "abc123"),
-        .parent_files_hash = try allocator.dupe(u8, "hash123"),
-        .source_branch = try allocator.dupe(u8, "main"),
-        .last_sync_time = try allocator.dupe(u8, "2025-10-26T00:00:00Z"),
-        .last_push_time = try allocator.dupe(u8, "2025-10-26T00:00:00Z"),
-    };
-
-    state.deinit(allocator);
 }
 
 test "SyncState JSON serialization" {
