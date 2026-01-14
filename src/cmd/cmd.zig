@@ -5,6 +5,7 @@ pub const Command = enum {
     help,
     init,
     add,
+    resolve,
     sync,
     pull,
     status,
@@ -37,6 +38,7 @@ pub fn printUsage() !void {
         \\Commands:
         \\  init                Initialize salt.conf in repository
         \\  add <url> [path]    Add a submodule to the project
+        \\  resolve [name]      Download and setup all dependencies
         \\  sync [name]         Sync submodules to correct branch based on parent branch
         \\  pull [name]         Pull latest changes on current branches
         \\  status              Display status of all submodules
@@ -105,6 +107,7 @@ pub fn suggestCommand(invalid_cmd: []const u8) !void {
     const commands = [_][]const u8{
         "init",
         "add",
+        "resolve",
         "sync",
         "pull",
         "status",

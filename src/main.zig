@@ -3,6 +3,7 @@ const clap = @import("clap");
 const cmd = @import("cmd/cmd.zig");
 const init_cmd = @import("cmd/init.zig");
 const add_cmd = @import("cmd/add.zig");
+const resolve_cmd = @import("cmd/resolve.zig");
 const sync_cmd = @import("cmd/sync.zig");
 const pull_cmd = @import("cmd/pull.zig");
 const push_cmd = @import("cmd/push.zig");
@@ -76,6 +77,7 @@ pub fn main() !void {
         .help => try cmd.printUsage(),
         .init => try init_cmd.execute(gpa, &iter),
         .add => try add_cmd.execute(gpa, &iter),
+        .resolve => try resolve_cmd.execute(gpa, &iter),
         .sync => try sync_cmd.execute(gpa, &iter),
         .pull => try pull_cmd.execute(gpa, &iter),
         .push => try push_cmd.execute(gpa, &iter),
