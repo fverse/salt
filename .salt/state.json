@@ -1,0 +1,12 @@
+{
+  "version": "1.0",
+  "submodules": {
+    "hello-world": {
+      "last_sync_commit": "7fd1a60b01f91b314f59955a4e4d4e80d8edf11d",
+      "last_push_commit": "7fd1a60b01f91b314f59955a4e4d4e80d8edf11d",
+      "parent_files_hash": "4b403030331ed5fea437f140040e30bde2e3f6ede95124888c56d7a14dea0be1",
+      "source_branch": "master",
+      "last_sync_time": "2026-01-28T03:03:55Z"
+    }
+  }
+}
