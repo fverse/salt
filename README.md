@@ -1,4 +1,4 @@
-# Salt (WIP)
+# Salt (WIP, Experimental)
 
 Branch-aware Git submodule alternative
 
