@@ -66,6 +66,10 @@ pub fn execute(allocator: Allocator, args: *std.process.ArgIterator) !void {
 
     try stdout.print("Removing submodule '{s}'...\n", .{name});
 
+    // Save the path before removal frees it
+    const submodule_path = try allocator.dupe(u8, submodule.path);
+    defer allocator.free(submodule_path);
+
     // Perform safety checks if deleting files
     if (options.delete_files) {
         try performSafetyChecks(allocator, submodule, options, stderr);
@@ -78,7 +82,7 @@ pub fn execute(allocator: Allocator, args: *std.process.ArgIterator) !void {
     if (options.delete_files) {
         try stdout.print("\n✓ Removed submodule '{s}' and deleted files\n", .{name});
     } else {
-        try stdout.print("\n✓ Removed submodule '{s}' (files preserved at {s})\n", .{ name, submodule.path });
+        try stdout.print("\n✓ Removed submodule '{s}' (files preserved at {s})\n", .{ name, submodule_path });
     }
 }
 
@@ -187,10 +191,15 @@ fn removeSubmodule(
     // 4. Remove submodule from state.json
     try stdout.print("  Updating state tracking...\n", .{});
 
-    var sync_state = try state_mod.SyncState.load(allocator);
-    defer sync_state.deinit();
-
-    try state_mod.removeSubmoduleState(&sync_state, allocator, name);
+    if (state_mod.SyncState.load(allocator)) |sync_state_val| {
+        var sync_state = sync_state_val;
+        defer sync_state.deinit();
+        state_mod.removeSubmoduleState(&sync_state, allocator, name) catch |err| {
+            try stderr.print("  Warning: Failed to update state tracking: {}\n", .{err});
+        };
+    } else |err| {
+        try stderr.print("  Warning: Failed to load state: {}\n", .{err});
+    }
 }
 
 fn printHelp() !void {
