@@ -1,12 +1,6 @@
-[submodule: "protobuf"]
-    path = protobuf
-	url = ../protobuf.git
-    default_branch = development
-    branches: {
-        dev: dev
-        staging: stage
-        production: release
-    }
+# Saltfile - Submodule configuration
 
-[dir: "models"]
-    path = models
+[submodule "broto"]
+  path = broto
+  url = git@github.com:fverse/broto.git
+  default_branch = main
