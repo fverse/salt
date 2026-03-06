@@ -1,12 +1,12 @@
 {
   "version": "1.0",
   "submodules": {
-    "hello-world": {
-      "last_sync_commit": "7fd1a60b01f91b314f59955a4e4d4e80d8edf11d",
-      "last_push_commit": "7fd1a60b01f91b314f59955a4e4d4e80d8edf11d",
-      "parent_files_hash": "4b403030331ed5fea437f140040e30bde2e3f6ede95124888c56d7a14dea0be1",
-      "source_branch": "master",
-      "last_sync_time": "2026-01-28T03:03:55Z"
+    "broto": {
+      "last_sync_commit": "4508c7b6ba4607753d24c5fadaac724e348b3406",
+      "last_push_commit": "4508c7b6ba4607753d24c5fadaac724e348b3406",
+      "parent_files_hash": "a00fc3a7b29eabb3bffa4412d8e1727c1e616ccb5bfa8b8304b5d3cf65e709bd",
+      "source_branch": "main",
+      "last_sync_time": "2026-03-19T20:14:04Z"
     }
   }
 }
