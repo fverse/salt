@@ -44,13 +44,13 @@ pub fn main() !void {
             // Skip global flags
             while (temp_iter.next()) |arg| {
                 if (!std.mem.startsWith(u8, arg, "-")) {
-                    try cmd.suggestCommand(arg);
-                    return err;
+                    cmd.suggestCommand(arg) catch {};
+                    return;
                 }
             }
         }
         diag.report(std.io.getStdErr().writer(), err) catch {};
-        return err;
+        return;
     };
     defer res.deinit();
 
