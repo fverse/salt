@@ -75,14 +75,14 @@ pub fn main() !void {
 
     switch (command) {
         .help => try cmd.printUsage(),
-        .init => try init_cmd.execute(gpa, &iter),
-        .add => try add_cmd.execute(gpa, &iter),
-        .resolve => try resolve_cmd.execute(gpa, &iter),
-        .sync => try sync_cmd.execute(gpa, &iter),
-        .pull => try pull_cmd.execute(gpa, &iter),
-        .push => try push_cmd.execute(gpa, &iter),
-        .status => try status_cmd.execute(gpa, &iter),
-        .remove => try remove_cmd.execute(gpa, &iter),
+        .init => init_cmd.execute(gpa, &iter) catch return,
+        .add => add_cmd.execute(gpa, &iter) catch return,
+        .resolve => resolve_cmd.execute(gpa, &iter) catch return,
+        .sync => sync_cmd.execute(gpa, &iter) catch return,
+        .pull => pull_cmd.execute(gpa, &iter) catch return,
+        .push => push_cmd.execute(gpa, &iter) catch return,
+        .status => status_cmd.execute(gpa, &iter) catch return,
+        .remove => remove_cmd.execute(gpa, &iter) catch return,
     }
 }
 
