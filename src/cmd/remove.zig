@@ -82,6 +82,7 @@ pub fn execute(allocator: Allocator, args: *std.process.ArgIterator) !void {
         try stdout.print("\n✓ Removed submodule '{s}' (files preserved at {s})\n", .{ name, submodule_path });
     } else {
         try stdout.print("\n✓ Removed submodule '{s}'\n", .{name});
+        try stderr.writeAll("To keep the files, revert this step and run the remove command with the --keep-files flag\n");
     }
 }
 
