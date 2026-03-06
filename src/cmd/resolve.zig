@@ -34,19 +34,19 @@ pub fn execute(allocator: Allocator, args: *std.process.ArgIterator) !void {
     const stdout = std.io.getStdOut().writer();
     const stderr = std.io.getStdErr().writer();
 
-    // Load salt.conf
+    // Load Saltfile
     var parser = config_parser.Parser.init(allocator);
     defer parser.deinit();
 
-    var config = parser.parseFile("salt.conf") catch |err| {
-        try stderr.print("Error: Failed to load salt.conf: {}\n", .{err});
-        try stderr.writeAll("Run 'salt init' to create a salt.conf file\n");
+    var config = parser.parseFile("Saltfile") catch |err| {
+        try stderr.print("Error: Failed to load Saltfile: {}\n", .{err});
+        try stderr.writeAll("Run 'salt init' to create a Saltfile\n");
         return err;
     };
     defer config.deinit();
 
     if (config.submodules.items.len == 0) {
-        try stdout.writeAll("No submodules defined in salt.conf\n");
+        try stdout.writeAll("No submodules defined in Saltfile\n");
         return;
     }
 
@@ -73,7 +73,7 @@ pub fn execute(allocator: Allocator, args: *std.process.ArgIterator) !void {
     if (submodule_name) |name| {
         // Resolve single submodule
         const submodule = config.findByName(name) orelse {
-            try stderr.print("Error: Submodule '{s}' not found in salt.conf\n", .{name});
+            try stderr.print("Error: Submodule '{s}' not found in Saltfile\n", .{name});
             return error.SubmoduleNotFound;
         };
 
@@ -137,7 +137,7 @@ pub fn execute(allocator: Allocator, args: *std.process.ArgIterator) !void {
         if (nested_deps.items.len > 0) {
             try stdout.writeAll("\n⚠ Nested salt dependencies detected:\n");
             for (nested_deps.items) |dep_path| {
-                try stdout.print("  → {s}/salt.conf\n", .{dep_path});
+                try stdout.print("  → {s}/Saltfile\n", .{dep_path});
             }
             try stdout.writeAll("  Run 'salt resolve' inside those directories to resolve them.\n");
         }
@@ -256,10 +256,10 @@ fn resolveSubmodule(
         target_branch,
     );
 
-    // Check for nested salt.conf
+    // Check for nested Saltfile
     const nested_salt_conf = try std.fmt.allocPrint(
         allocator,
-        "{s}/salt.conf",
+        "{s}/Saltfile",
         .{submodule.path},
     );
     defer allocator.free(nested_salt_conf);
@@ -312,14 +312,14 @@ fn printHelp() !void {
         \\    salt resolve [submodule-name] [options]
         \\
         \\DESCRIPTION:
-        \\    Resolves all submodule dependencies defined in salt.conf.
+        \\    Resolves all submodule dependencies defined in Saltfile.
         \\    Use this after cloning a repository that uses salt submodules.
         \\
         \\    For each submodule:
         \\    - If not present: clones the repository to .salt/repos/<name>
         \\    - If present: verifies and updates to the default branch
         \\    - Copies files to the target path (excluding .git)
-        \\    - Detects nested salt.conf files and notifies about them
+        \\    - Detects nested Saltfile files and notifies about them
         \\
         \\ARGUMENTS:
         \\    [submodule-name]    Optional: Resolve only the specified submodule

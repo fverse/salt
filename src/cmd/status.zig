@@ -54,10 +54,10 @@ pub fn execute(allocator: Allocator, iter: *std.process.ArgIterator) !void {
     var parser = config_parser.Parser.init(allocator);
     defer parser.deinit();
 
-    var config = parser.parseFile("salt.conf") catch |err| {
+    var config = parser.parseFile("Saltfile") catch |err| {
         const stderr = std.io.getStdErr().writer();
         if (err == error.FileNotFound) {
-            try stderr.writeAll("Error: salt.conf not found. Run 'salt init' to create it.\n");
+            try stderr.writeAll("Error: Saltfile not found. Run 'salt init' to create it.\n");
         } else {
             try stderr.print("Error loading configuration: {}\n", .{err});
         }

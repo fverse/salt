@@ -23,16 +23,16 @@ pub fn execute(allocator: std.mem.Allocator, iter: *std.process.ArgIterator) !vo
         return;
     }
 
-    // Check if salt.conf already exists
-    if (std.fs.cwd().access("salt.conf", .{})) |_| {
+    // Check if Saltfile already exists
+    if (std.fs.cwd().access("Saltfile", .{})) |_| {
         const stderr = std.io.getStdErr().writer();
-        try stderr.writeAll("Error: salt.conf already exists\n");
+        try stderr.writeAll("Error: Saltfile already exists\n");
         return error.ConfigExists;
     } else |_| {}
 
     // Create empty config with header
     const content =
-        \\# salt.conf - Submodule configuration
+        \\# Saltfile - Submodule configuration
         \\# 
         \\# Add submodules with: salt add <url> [path]
         \\# 
@@ -49,10 +49,10 @@ pub fn execute(allocator: std.mem.Allocator, iter: *std.process.ArgIterator) !vo
         \\
     ;
 
-    try std.fs.cwd().writeFile(.{ .sub_path = "salt.conf", .data = content });
+    try std.fs.cwd().writeFile(.{ .sub_path = "Saltfile", .data = content });
 
     const stdout = std.io.getStdOut().writer();
-    try stdout.writeAll("✓ Initialized salt.conf\n");
+    try stdout.writeAll("✓ Initialized Saltfile\n");
     try stdout.writeAll("  Add submodules with: salt add <url> [path]\n");
 }
 
@@ -64,9 +64,9 @@ fn printHelp() !void {
         \\Usage: salt init [options]
         \\
         \\Description:
-        \\  Creates an empty salt.conf file in the repository root to prepare
+        \\  Creates an empty Saltfile in the repository root to prepare
         \\  for adding submodules. This command is optional since 'salt add'
-        \\  will create salt.conf if it doesn't exist.
+        \\  will create Saltfile if it doesn't exist.
         \\
         \\Options:
         \\  -h, --help           Display this help and exit

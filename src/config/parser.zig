@@ -3,7 +3,7 @@ const types = @import("./types.zig");
 const SubmoduleConfig = types.SubmoduleConfig;
 const Submodule = types.Submodule;
 
-/// Parser for salt.conf configuration
+/// Parser for Saltfile configuration
 pub const Parser = struct {
     allocator: std.mem.Allocator,
     arena: std.heap.ArenaAllocator,
@@ -50,7 +50,7 @@ pub const Parser = struct {
         return try self.parseContent(content);
     }
 
-    /// Parse salt.conf content from a string
+    /// Parse Saltfile content from a string
     pub fn parseContent(self: *Parser, content: []const u8) !SubmoduleConfig {
         var conf = SubmoduleConfig.init(self.allocator);
         errdefer conf.deinit();

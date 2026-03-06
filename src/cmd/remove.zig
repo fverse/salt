@@ -44,12 +44,12 @@ pub fn execute(allocator: Allocator, args: *std.process.ArgIterator) !void {
         return error.MissingArgument;
     };
 
-    // Load salt.conf
+    // Load Saltfile
     var parser = config_parser.Parser.init(allocator);
     defer parser.deinit();
 
-    var config = parser.parseFile("salt.conf") catch |err| {
-        try stderr.print("Error: Failed to load salt.conf: {}\n", .{err});
+    var config = parser.parseFile("Saltfile") catch |err| {
+        try stderr.print("Error: Failed to load Saltfile: {}\n", .{err});
         if (err == error.FileNotFound) {
             try stderr.writeAll("Run 'salt init' to create a configuration file\n");
         }
@@ -59,7 +59,7 @@ pub fn execute(allocator: Allocator, args: *std.process.ArgIterator) !void {
 
     // Validate submodule exists
     const submodule = config.findByName(name) orelse {
-        try stderr.print("Error: Submodule '{s}' not found in salt.conf\n", .{name});
+        try stderr.print("Error: Submodule '{s}' not found in Saltfile\n", .{name});
         try stderr.writeAll("Run 'salt status' to see configured submodules\n");
         return error.SubmoduleNotFound;
     };
@@ -171,8 +171,8 @@ fn removeSubmodule(
         };
     }
 
-    // 3. Remove submodule entry from salt.conf
-    try stdout.print("  Updating salt.conf...\n", .{});
+    // 3. Remove submodule entry from Saltfile
+    try stdout.print("  Updating Saltfile...\n", .{});
 
     const removed = try config.removeSubmodule(name);
     if (!removed) {
@@ -182,7 +182,7 @@ fn removeSubmodule(
 
     // Write updated configuration
     var writer = config_writer.Writer.init(allocator);
-    try writer.writeFile(config, "salt.conf");
+    try writer.writeFile(config, "Saltfile");
 
     // 4. Remove submodule from state.json
     try stdout.print("  Updating state tracking...\n", .{});
@@ -203,7 +203,7 @@ fn printHelp() !void {
         \\
         \\DESCRIPTION:
         \\    Remove a submodule from the project cleanly. This removes the
-        \\    submodule entry from salt.conf, the hidden repository from
+        \\    submodule entry from Saltfile, the hidden repository from
         \\    .salt/repos/, and optionally deletes the working directory.
         \\
         \\ARGUMENTS:

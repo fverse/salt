@@ -48,7 +48,7 @@ pub const Writer = struct {
     }
 
     pub fn writeSaltfileHeader(_: *Writer, writer: anytype) !void {
-        try writer.writeAll("# salt.conf - Submodule configuration\n");
+        try writer.writeAll("# Saltfile - Submodule configuration\n");
         // TODO: write parent repository information like
         try writer.writeAll("\n");
     }
@@ -113,7 +113,7 @@ pub const Writer = struct {
 };
 
 pub fn readFileContent(allocator: std.mem.Allocator) ![]const u8 {
-    const file = std.fs.cwd().openFile("salt.conf", .{}) catch |err| {
+    const file = std.fs.cwd().openFile("Saltfile", .{}) catch |err| {
         if (err == error.FileNotFound) {
             // Return empty config if file doesn't exist
             // TODO: return SubmoduleConfig.init(allocator);

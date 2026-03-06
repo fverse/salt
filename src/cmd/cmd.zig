@@ -36,7 +36,7 @@ pub fn printUsage() !void {
         \\Usage: salt <command> [options]
         \\
         \\Commands:
-        \\  init                Initialize salt.conf in repository
+        \\  init                Initialize Saltfile in repository
         \\  add <url> [path]    Add a submodule to the project
         \\  resolve [name]      Download and setup all dependencies
         \\  sync [name]         Sync submodules to correct branch based on parent branch

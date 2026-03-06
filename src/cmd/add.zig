@@ -129,14 +129,14 @@ pub fn execute(allocator: std.mem.Allocator, iter: *std.process.ArgIterator) !vo
         // Continue anyway - user might not be in a git repo
     }
 
-    // Ensure salt.conf exists
+    // Ensure Saltfile exists
     try utils.createSaltFile();
 
     // Load existing configuration
     var parser = Parser.init(allocator);
     defer parser.deinit();
 
-    var config = parser.parseFile("salt.conf") catch |err| blk: {
+    var config = parser.parseFile("Saltfile") catch |err| blk: {
         if (err == error.FileNotFound) {
             break :blk SubmoduleConfig.init(allocator);
         } else {
@@ -158,7 +158,7 @@ pub fn execute(allocator: std.mem.Allocator, iter: *std.process.ArgIterator) !vo
 
     // Write updated configuration
     var writer = Writer.init(allocator);
-    try writer.writeFile(&config, "salt.conf");
+    try writer.writeFile(&config, "Saltfile");
 
     // Initialize state tracking
     try stdout.print("Initializing state tracking...\n", .{});

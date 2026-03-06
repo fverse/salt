@@ -36,9 +36,9 @@ pub fn execute(allocator: Allocator, args: *std.process.ArgIterator) !void {
     var parser = config_parser.Parser.init(allocator);
     defer parser.deinit();
 
-    var config = parser.parseFile("salt.conf") catch |err| {
+    var config = parser.parseFile("Saltfile") catch |err| {
         const stderr = std.io.getStdErr().writer();
-        try stderr.print("Error: Failed to load salt.conf: {}\n", .{err});
+        try stderr.print("Error: Failed to load Saltfile: {}\n", .{err});
         if (options.ci_mode) {
             std.process.exit(2);
         }
