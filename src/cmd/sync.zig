@@ -260,7 +260,7 @@ pub fn syncSubmodule(
         try stderr.print("  Warning: Pull failed: {}\n", .{err});
     };
 
-    // Copy files from source to parent path
+    // Copy files to target path
     if (!options.quiet) {
         try stdout.print("  Copying files to {s}...\n", .{submodule.path});
     }

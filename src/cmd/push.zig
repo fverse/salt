@@ -320,12 +320,13 @@ fn pushSubmodule(
         try stdout.print("  Committing changes...\n", .{});
     }
 
-    const commit_msg = try std.fmt.allocPrint(
-        allocator,
-        "Update from parent repo (branch: {s})",
-        .{parent_branch},
-    );
+    // Try to get the last commit message that touched this submodule path
+    const commit_msg = try getLastCommitMessage(allocator, submodule.path, parent_branch);
     defer allocator.free(commit_msg);
+
+    if (!options.quiet) {
+        try stdout.print("  Using commit message: {s}\n", .{commit_msg});
+    }
 
     var commit_result = try git.executeGitCommand(allocator, &[_][]const u8{
         "git",
@@ -374,6 +375,40 @@ fn pushSubmodule(
     if (!options.quiet) {
         try stdout.print("  ✓ Successfully pushed '{s}' to {s}\n", .{ submodule.name, current_branch });
     }
+}
+
+/// Get the last commit message that touched files in the given path
+fn getLastCommitMessage(allocator: Allocator, path: []const u8, fallback_branch: []const u8) ![]const u8 {
+    // Try to get the last commit message for this path
+    var result = git.executeGitCommand(allocator, &[_][]const u8{
+        "git",
+        "log",
+        "-1",
+        "--pretty=format:%s",
+        "--",
+        path,
+    }) catch {
+        // If git log fails, use fallback message
+        return try std.fmt.allocPrint(
+            allocator,
+            "Update from parent repo (branch: {s})",
+            .{fallback_branch},
+        );
+    };
+    defer result.deinit(allocator);
+
+    if (result.exit_code != 0 or result.stdout.len == 0) {
+        // No commits found for this path, use fallback
+        return try std.fmt.allocPrint(
+            allocator,
+            "Update from parent repo (branch: {s})",
+            .{fallback_branch},
+        );
+    }
+
+    // Return the commit message (trim whitespace)
+    const trimmed = std.mem.trim(u8, result.stdout, " \n\r\t");
+    return try allocator.dupe(u8, trimmed);
 }
 
 fn printHelp() !void {
