@@ -8,7 +8,7 @@ const git = @import("../git/operations.zig");
 const fs = @import("../utils/fs.zig");
 
 const RemoveOptions = struct {
-    delete_files: bool = false,
+    keep_files: bool = false,
     force: bool = false,
 };
 
@@ -18,8 +18,8 @@ pub fn execute(allocator: Allocator, args: *std.process.ArgIterator) !void {
     var submodule_name: ?[]const u8 = null;
 
     while (args.next()) |arg| {
-        if (std.mem.eql(u8, arg, "--delete-files")) {
-            options.delete_files = true;
+        if (std.mem.eql(u8, arg, "--keep-files")) {
+            options.keep_files = true;
         } else if (std.mem.eql(u8, arg, "--force") or std.mem.eql(u8, arg, "-f")) {
             options.force = true;
         } else if (std.mem.eql(u8, arg, "--help") or std.mem.eql(u8, arg, "-h")) {
@@ -70,19 +70,18 @@ pub fn execute(allocator: Allocator, args: *std.process.ArgIterator) !void {
     const submodule_path = try allocator.dupe(u8, submodule.path);
     defer allocator.free(submodule_path);
 
-    // Perform safety checks if deleting files
-    if (options.delete_files) {
+    // Perform safety checks before deleting files
+    if (!options.keep_files) {
         try performSafetyChecks(allocator, submodule, options, stderr);
     }
 
     // Perform the removal
     try removeSubmodule(allocator, &config, submodule, name, options, stdout, stderr);
 
-    // Report success
-    if (options.delete_files) {
-        try stdout.print("\n✓ Removed submodule '{s}' and deleted files\n", .{name});
-    } else {
+    if (options.keep_files) {
         try stdout.print("\n✓ Removed submodule '{s}' (files preserved at {s})\n", .{ name, submodule_path });
+    } else {
+        try stdout.print("\n✓ Removed submodule '{s}'\n", .{name});
     }
 }
 
@@ -131,8 +130,8 @@ fn removeSubmodule(
     stdout: anytype,
     stderr: anytype,
 ) !void {
-    // 1. Delete working directory if --delete-files flag is set
-    if (options.delete_files and fs.pathExists(submodule.path)) {
+    // Delete working directory (default behavior, skip with --keep-files)
+    if (!options.keep_files and fs.pathExists(submodule.path)) {
         try stdout.print("  Deleting working directory: {s}\n", .{submodule.path});
 
         std.fs.cwd().deleteTree(submodule.path) catch |err| {
@@ -211,34 +210,33 @@ fn printHelp() !void {
         \\    salt remove <submodule-name> [options]
         \\
         \\DESCRIPTION:
-        \\    Remove a submodule from the project cleanly. This removes the
-        \\    submodule entry from Saltfile, the hidden repository from
-        \\    .salt/repos/, and optionally deletes the working directory.
+        \\    Remove a submodule from the project. This removes the submodule
+        \\    entry from Saltfile, the hidden repository from .salt/repos/,
+        \\    and deletes the working directory.
         \\
         \\ARGUMENTS:
         \\    <submodule-name>    Name of the submodule to remove (required)
         \\
         \\OPTIONS:
-        \\    --delete-files      Delete the submodule working directory
-        \\                        (default: preserve files)
+        \\    --keep-files        Preserve the submodule working directory
+        \\                        (default: delete files)
         \\    --force, -f         Force deletion even with uncommitted changes
-        \\                        (only applies with --delete-files)
         \\    --help, -h          Display this help message
         \\
         \\EXAMPLES:
-        \\    # Remove submodule but keep files
+        \\    # Remove submodule and delete files
         \\    salt remove xyz
         \\
-        \\    # Remove submodule and delete files
-        \\    salt remove xyz --delete-files
+        \\    # Remove submodule but keep files
+        \\    salt remove xyz --keep-files
         \\
         \\    # Force delete even with uncommitted changes
-        \\    salt remove xyz --delete-files --force
+        \\    salt remove xyz --force
         \\
         \\NOTES:
-        \\    - Without --delete-files, only the configuration is updated
-        \\    - The working directory files remain as regular files
-        \\    - With --delete-files, uncommitted changes require --force
+        \\    - By default, the working directory is deleted
+        \\    - Use --keep-files to preserve the directory as regular files
+        \\    - Uncommitted changes require --force to proceed
         \\    - The hidden repository in .salt/repos/ is always removed
         \\
     );
