@@ -10,7 +10,6 @@ const output = @import("../utils/output.zig");
 
 const SubmoduleConfig = config_types.SubmoduleConfig;
 const Submodule = config_types.Submodule;
-const SyncState = state_mod.SyncState;
 const SyncStatus = state_mod.SyncStatus;
 
 pub const SubmoduleStatus = struct {
@@ -65,10 +64,6 @@ pub fn execute(allocator: Allocator, iter: *std.process.ArgIterator) !void {
     };
     defer config.deinit();
 
-    // Load state
-    var sync_state = try SyncState.load(allocator);
-    defer sync_state.deinit();
-
     // Get current parent branch
     const parent_branch = try git.getCurrentBranch(allocator, ".");
     defer allocator.free(parent_branch);
@@ -86,7 +81,6 @@ pub fn execute(allocator: Allocator, iter: *std.process.ArgIterator) !void {
         const status = try collectSubmoduleStatus(
             allocator,
             submodule,
-            &sync_state,
             parent_branch,
             verbose,
         );
@@ -104,7 +98,6 @@ pub fn execute(allocator: Allocator, iter: *std.process.ArgIterator) !void {
 fn collectSubmoduleStatus(
     allocator: Allocator,
     submodule: *const Submodule,
-    sync_state: *const SyncState,
     parent_branch: []const u8,
     verbose: bool,
 ) !SubmoduleStatus {
@@ -149,12 +142,16 @@ fn collectSubmoduleStatus(
         return err;
     };
 
-    // Get submodule state
-    const submodule_state = sync_state.submodules.get(submodule.name);
+    // Get submodule state from saltstate.json
+    const submodule_state_opt = try state_mod.loadSubmoduleState(allocator, submodule.path);
+    defer if (submodule_state_opt) |s| {
+        var s_mut = s;
+        s_mut.deinit(allocator);
+    };
 
     // Detect sync status
-    const status = if (submodule_state) |state|
-        try state_mod.detectSyncStatus(allocator, submodule, &state, parent_branch)
+    const status = if (submodule_state_opt) |s|
+        try state_mod.detectSyncStatus(allocator, submodule, &s, parent_branch)
     else
         SyncStatus.behind; // No state means never synced
 
@@ -168,7 +165,7 @@ fn collectSubmoduleStatus(
     var ahead: usize = 0;
     var behind: usize = 0;
 
-    if (verbose and submodule_state != null) {
+    if (verbose and submodule_state_opt != null) {
         const counts = try getAheadBehindCounts(allocator, source_path, expected_branch);
         ahead = counts.ahead;
         behind = counts.behind;

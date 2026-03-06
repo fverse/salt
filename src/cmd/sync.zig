@@ -60,10 +60,6 @@ pub fn execute(allocator: Allocator, args: *std.process.ArgIterator) !void {
     };
     defer config.deinit();
 
-    // Load state.json
-    var sync_state = try state_mod.SyncState.load(allocator);
-    defer sync_state.deinit();
-
     // Track results
     var success_count: usize = 0;
     const skipped_count: usize = 0;
@@ -92,7 +88,6 @@ pub fn execute(allocator: Allocator, args: *std.process.ArgIterator) !void {
             allocator,
             submodule,
             parent_branch,
-            &sync_state,
             options,
         ) catch |err| {
             failed_count += 1;
@@ -119,7 +114,6 @@ pub fn execute(allocator: Allocator, args: *std.process.ArgIterator) !void {
                 allocator,
                 submodule,
                 parent_branch,
-                &sync_state,
                 options,
             ) catch |err| {
                 failed_count += 1;
@@ -170,7 +164,6 @@ pub fn syncSubmodule(
     allocator: Allocator,
     submodule: *const config_types.Submodule,
     parent_branch: []const u8,
-    sync_state: *state_mod.SyncState,
     options: SyncOptions,
 ) !void {
     const stdout = std.io.getStdOut().writer();
@@ -269,9 +262,7 @@ pub fn syncSubmodule(
 
     // Update state tracking
     try state_mod.updateAfterSync(
-        sync_state,
         allocator,
-        submodule.name,
         submodule.path,
         source_path,
         target_branch,

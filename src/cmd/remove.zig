@@ -184,13 +184,10 @@ fn removeSubmodule(
     var writer = config_writer.Writer.init(allocator);
     try writer.writeFile(config, "Saltfile");
 
-    // 4. Remove submodule from state.json
-    try stdout.print("  Updating state tracking...\n", .{});
+    // 4. Remove submodule state file
+    try stdout.print("  Removing state tracking...\n", .{});
 
-    var sync_state = try state_mod.SyncState.load(allocator);
-    defer sync_state.deinit();
-
-    try state_mod.removeSubmoduleState(&sync_state, allocator, name);
+    try state_mod.removeSubmoduleState(allocator, submodule.path);
 }
 
 fn printHelp() !void {

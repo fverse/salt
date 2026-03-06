@@ -46,9 +46,6 @@ pub fn execute(allocator: Allocator, args: *std.process.ArgIterator) !void {
     };
     defer config.deinit();
 
-    var sync_state = try state_mod.SyncState.load(allocator);
-    defer sync_state.deinit();
-
     var success_count: usize = 0;
     var skipped_count: usize = 0;
     var failed_count: usize = 0;
@@ -64,7 +61,7 @@ pub fn execute(allocator: Allocator, args: *std.process.ArgIterator) !void {
             return error.SubmoduleNotFound;
         };
 
-        pullSubmodule(allocator, submodule, &sync_state, options) catch |err| {
+        pullSubmodule(allocator, submodule, options) catch |err| {
             if (err == error.UncommittedChanges or err == error.MergeConflict) {
                 skipped_count += 1;
             } else {
@@ -79,7 +76,7 @@ pub fn execute(allocator: Allocator, args: *std.process.ArgIterator) !void {
         }
     } else {
         for (config.submodules.items) |*submodule| {
-            pullSubmodule(allocator, submodule, &sync_state, options) catch |err| {
+            pullSubmodule(allocator, submodule, options) catch |err| {
                 if (err == error.UncommittedChanges or err == error.MergeConflict) {
                     skipped_count += 1;
                 } else {
@@ -110,7 +107,6 @@ pub fn execute(allocator: Allocator, args: *std.process.ArgIterator) !void {
 fn pullSubmodule(
     allocator: Allocator,
     submodule: *const config_types.Submodule,
-    sync_state: *state_mod.SyncState,
     options: PullOptions,
 ) !void {
     const stdout = std.io.getStdOut().writer();
@@ -162,7 +158,7 @@ fn pullSubmodule(
 
     try fs.copyDirectory(allocator, source_path, submodule.path, .{ .exclude_git = true });
 
-    try state_mod.updateAfterSync(sync_state, allocator, submodule.name, submodule.path, source_path, current_branch);
+    try state_mod.updateAfterSync(allocator, submodule.path, source_path, current_branch);
 
     if (!options.quiet) {
         try stdout.print("  ✓ Successfully pulled '{s}'\n", .{submodule.name});

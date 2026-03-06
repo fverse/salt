@@ -58,10 +58,6 @@ pub fn execute(allocator: Allocator, args: *std.process.ArgIterator) !void {
         }
     };
 
-    // Load state
-    var sync_state = try state_mod.SyncState.load(allocator);
-    defer sync_state.deinit();
-
     // Track results
     var resolved_count: usize = 0;
     var updated_count: usize = 0;
@@ -80,7 +76,6 @@ pub fn execute(allocator: Allocator, args: *std.process.ArgIterator) !void {
         const result = resolveSubmodule(
             allocator,
             submodule,
-            &sync_state,
             options,
             &nested_deps,
         ) catch |err| {
@@ -100,7 +95,6 @@ pub fn execute(allocator: Allocator, args: *std.process.ArgIterator) !void {
             const result = resolveSubmodule(
                 allocator,
                 submodule,
-                &sync_state,
                 options,
                 &nested_deps,
             ) catch |err| {
@@ -154,7 +148,6 @@ const ResolveResult = enum {
 fn resolveSubmodule(
     allocator: Allocator,
     submodule: *const config_types.Submodule,
-    sync_state: *state_mod.SyncState,
     options: ResolveOptions,
     nested_deps: *std.ArrayList([]const u8),
 ) !ResolveResult {
@@ -248,9 +241,7 @@ fn resolveSubmodule(
 
     // Update state tracking
     try state_mod.updateAfterSync(
-        sync_state,
         allocator,
-        submodule.name,
         submodule.path,
         source_path,
         target_branch,

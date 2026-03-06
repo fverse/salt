@@ -162,13 +162,9 @@ pub fn execute(allocator: std.mem.Allocator, iter: *std.process.ArgIterator) !vo
 
     // Initialize state tracking
     try stdout.print("Initializing state tracking...\n", .{});
-    var sync_state = try state.SyncState.load(allocator);
-    defer sync_state.deinit();
 
     try state.initializeSubmoduleState(
-        &sync_state,
         allocator,
-        name,
         path,
         source_path,
         branch,

@@ -53,10 +53,6 @@ pub fn execute(allocator: Allocator, args: *std.process.ArgIterator) !void {
     };
     defer config.deinit();
 
-    // Load state.json
-    var sync_state = try state.SyncState.load(allocator);
-    defer sync_state.deinit();
-
     // Get current parent branch
     const parent_branch = try git.getCurrentBranch(allocator, ".");
     defer allocator.free(parent_branch);
@@ -93,7 +89,6 @@ pub fn execute(allocator: Allocator, args: *std.process.ArgIterator) !void {
             allocator,
             submodule,
             parent_branch,
-            &sync_state,
             options,
         ) catch |err| {
             if (err == error.NoChanges or err == error.BranchMismatch) {
@@ -124,7 +119,6 @@ pub fn execute(allocator: Allocator, args: *std.process.ArgIterator) !void {
                 allocator,
                 submodule,
                 parent_branch,
-                &sync_state,
                 options,
             ) catch |err| {
                 if (err == error.NoChanges or err == error.BranchMismatch) {
@@ -178,7 +172,6 @@ fn pushSubmodule(
     allocator: Allocator,
     submodule: *const config_types.Submodule,
     parent_branch: []const u8,
-    sync_state: *state.SyncState,
     options: PushOptions,
 ) !void {
     const stdout = std.io.getStdOut().writer();
@@ -204,19 +197,21 @@ fn pushSubmodule(
     }
 
     // Get submodule state
-    const submodule_state = sync_state.submodules.get(submodule.name) orelse {
+    const submodule_state = (try state.loadSubmoduleState(allocator, submodule.path)) orelse {
         try stderr.print("  Error: No state found for submodule '{s}'\n", .{submodule.name});
         try stderr.print("  Run 'salt sync' to initialize state\n", .{});
         return error.NoState;
     };
+    var submodule_state_mut = submodule_state;
+    defer submodule_state_mut.deinit(allocator);
 
     // Detect branch mismatch (STALE status)
     const expected_branch = mapper.getBranchMapping(submodule, parent_branch);
-    const branch_mismatch = !std.mem.eql(u8, submodule_state.source_branch, expected_branch);
+    const branch_mismatch = !std.mem.eql(u8, submodule_state.branch, expected_branch);
 
     if (branch_mismatch and !options.force) {
         try stderr.print("  ⚠ Branch mismatch detected:\n", .{});
-        try stderr.print("    Current: {s}\n", .{submodule_state.source_branch});
+        try stderr.print("    Current: {s}\n", .{submodule_state.branch});
         try stderr.print("    Expected: {s}\n", .{expected_branch});
         try stderr.print("    Files may be from wrong branch (STALE)\n", .{});
 
@@ -234,7 +229,6 @@ fn pushSubmodule(
                 allocator,
                 submodule,
                 parent_branch,
-                sync_state,
                 sync_options,
             );
 
@@ -253,7 +247,7 @@ fn pushSubmodule(
     defer allocator.free(current_hash);
 
     // Compare with last push hash
-    if (std.mem.eql(u8, current_hash, submodule_state.parent_files_hash)) {
+    if (std.mem.eql(u8, current_hash, submodule_state.parent_hash)) {
         if (!options.quiet) {
             try stdout.print("  No changes to push\n", .{});
         }
@@ -365,9 +359,7 @@ fn pushSubmodule(
 
     // Update state tracking
     try state.updateAfterPush(
-        sync_state,
         allocator,
-        submodule.name,
         submodule.path,
         source_path,
     );
