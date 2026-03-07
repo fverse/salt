@@ -6,7 +6,7 @@ Salt automatically syncs your submodules to the correct branch based on your cur
 
 ## Install
 
-Run the following commands to download from your terminal:
+Run the following commands for your OS:
 
 ```sh
 # macOS Apple Silicon
