@@ -97,7 +97,7 @@ pub const Parser = struct {
                 std.mem.indexOf(u8, trimmed, "{") != null)
             {
                 in_branches_block = true;
-                branches_indent = indent + 4;
+                branches_indent = indent;
             }
             // Check for end of branches block
             else if (in_branches_block and std.mem.indexOf(u8, trimmed, "}") != null) {
@@ -105,7 +105,7 @@ pub const Parser = struct {
             }
             // Parse branch mappings inside branches block
             else if (in_branches_block and current_submodule != null) {
-                if (indent >= branches_indent) {
+                if (indent > branches_indent) {
                     const mapping = self.parseBranchMapping(trimmed) catch |err| {
                         std.debug.print("Parse error at line {d}: Invalid branch mapping syntax\n", .{self.current_line});
                         return err;
