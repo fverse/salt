@@ -2,11 +2,11 @@
   "version": "1.0",
   "submodules": {
     "broto": {
-      "last_sync_commit": "4508c7b6ba4607753d24c5fadaac724e348b3406",
-      "last_push_commit": "4508c7b6ba4607753d24c5fadaac724e348b3406",
-      "parent_files_hash": "a00fc3a7b29eabb3bffa4412d8e1727c1e616ccb5bfa8b8304b5d3cf65e709bd",
+      "last_sync_commit": "34b1ab53ac3eb1125b3d4f79e5647bda1df697ee",
+      "last_push_commit": "34b1ab53ac3eb1125b3d4f79e5647bda1df697ee",
+      "parent_files_hash": "98c63f21d80c4b6d41b552526d04ba4389129f6a6dccc4d102e746471cd3ba17",
       "source_branch": "main",
-      "last_sync_time": "2026-03-19T20:39:00Z"
+      "last_sync_time": "2026-03-20T10:23:33Z"
     }
   }
 }
