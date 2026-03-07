@@ -2,11 +2,11 @@
 
 Branch-aware Git submodule alternative.
 
-Salt automatically syncs your submodules to the correct branch based on your current working branch. Define branch mappings once in a `Saltfile`, and Salt handles the rest.
+Salt automatically syncs your submodules to the correct branch based on your current working branch. Define branch mappings once in a `Saltfile`.
 
 ## Install
 
-Download a prebuilt binary from [Releases](https://github.com/fverse/salt/releases):
+Run the following commands to download from your terminal:
 
 ```sh
 # macOS Apple Silicon
@@ -29,6 +29,8 @@ curl -LO https://github.com/fverse/salt/releases/latest/download/salt-aarch64-li
 tar -xzf salt-aarch64-linux.tar.gz
 sudo mv salt /usr/local/bin/
 ```
+
+Or download the prebuilt binary from [Releases](https://github.com/fverse/salt/releases):
 
 ### Build from source
 
