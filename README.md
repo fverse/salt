@@ -9,12 +9,26 @@ Salt automatically syncs your submodules to the correct branch based on your cur
 Download a prebuilt binary from [Releases](https://github.com/fverse/salt/releases):
 
 ```sh
-# Example for macOS ARM
+# macOS Apple Silicon
+curl -LO https://github.com/fverse/salt/releases/latest/download/salt-aarch64-macos.tar.gz
 tar -xzf salt-aarch64-macos.tar.gz
 sudo mv salt /usr/local/bin/
-```
 
-Available targets: `x86_64-linux`, `aarch64-linux`, `x86_64-macos`, `aarch64-macos`.
+# macOS Intel
+curl -LO https://github.com/fverse/salt/releases/latest/download/salt-x86_64-macos.tar.gz
+tar -xzf salt-x86_64-macos.tar.gz
+sudo mv salt /usr/local/bin/
+
+# Linux x86_64
+curl -LO https://github.com/fverse/salt/releases/latest/download/salt-x86_64-linux.tar.gz
+tar -xzf salt-x86_64-linux.tar.gz
+sudo mv salt /usr/local/bin/
+
+# Linux ARM64
+curl -LO https://github.com/fverse/salt/releases/latest/download/salt-aarch64-linux.tar.gz
+tar -xzf salt-aarch64-linux.tar.gz
+sudo mv salt /usr/local/bin/
+```
 
 ### Build from source
 
