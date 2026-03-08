@@ -7,8 +7,8 @@ const State = @import("../core/state.zig");
 pub fn execute(allocator: std.mem.Allocator, iter: *std.process.ArgIterator) !void {
     const params = comptime clap.parseParamsComptime(
         \\-h, --help               Display the help and exit.
-        \\<str>                   Name of the submodule that wanted to rename
-        \\<str>                   New name for the submodule 
+        \\<str>                    Name of the submodule that wanted to rename
+        \\<str>                    New name for the submodule 
     );
 
     var diag = clap.Diagnostic{};
@@ -53,12 +53,38 @@ pub fn execute(allocator: std.mem.Allocator, iter: *std.process.ArgIterator) !vo
         return;
     };
 
-    defer config.deinit();
+    // check if the parent directory for the destination exists. else create it
+    if (std.fs.path.dirname(new_path)) |parent_dir| {
+        std.fs.cwd().makePath(parent_dir) catch |err| {
+            const std_err = std.io.getStdErr().writer();
+            try std_err.print("Error: Failed to create parent directory {}\n", .{err});
+            return err;
+        };
+    }
 
     // Rename
     std.fs.cwd().rename(path, new_path) catch |err| {
         const std_err = std.io.getStdErr().writer();
         try std_err.print("Error: Failed to rename the submodule {}\n", .{err});
+    };
+
+    // Construct old and new paths for the internal repo
+    const old_repo_path = try std.fmt.allocPrint(allocator, ".salt/repos/{s}", .{path});
+    defer allocator.free(old_repo_path);
+
+    const new_repo_path = try std.fmt.allocPrint(allocator, ".salt/repos/{s}", .{new_path});
+    defer allocator.free(new_repo_path);
+
+    if (std.fs.path.dirname(new_repo_path)) |repo_parent_dir| {
+        std.fs.cwd().makePath(repo_parent_dir) catch |err| {
+            const std_err = std.io.getStdErr().writer();
+            try std_err.print("Warning: Failed to create parent directory for internal repo {}\n", .{err});
+        };
+    }
+
+    std.fs.cwd().rename(old_repo_path, new_repo_path) catch |err| {
+        const std_err = std.io.getStdErr().writer();
+        try std_err.print("Warning: Failed to rename the internal repo {}\n", .{err});
     };
 
     // Update the submodule path

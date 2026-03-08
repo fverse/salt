@@ -1,6 +1,6 @@
 # Saltfile - Submodule configuration
 
-[submodule "broto"]
-  path = broto
+[submodule "lib/proto"]
+  path = lib/proto
   url = git@github.com:fverse/broto.git
   default_branch = main

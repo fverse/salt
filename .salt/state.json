@@ -1,7 +1,7 @@
 {
   "version": "1.0",
   "submodules": {
-    "broto": {
+    "lib/proto": {
       "last_sync_commit": "34b1ab53ac3eb1125b3d4f79e5647bda1df697ee",
       "last_push_commit": "34b1ab53ac3eb1125b3d4f79e5647bda1df697ee",
       "parent_files_hash": "98c63f21d80c4b6d41b552526d04ba4389129f6a6dccc4d102e746471cd3ba17",
