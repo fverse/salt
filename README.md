@@ -81,6 +81,10 @@ Branch mappings use `parent_branch -> submodule_branch` syntax. When you're on `
 | `push [name]`      | Push submodule changes to remotes         |
 | `status`           | Show status of all submodules             |
 | `remove <name>`    | Remove a submodule                        |
+| `mv <name> <new_name>`    | Rename a submodule                        |
+
+Please see the salt --help for more information.
+And for getting the help for each command, run salt <command> --help.
 
 Global flags: `--quiet`, `--verbose`, `--help`, `--version`
 
