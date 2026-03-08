@@ -9,6 +9,7 @@ const pull_cmd = @import("cmd/pull.zig");
 const push_cmd = @import("cmd/push.zig");
 const status_cmd = @import("cmd/status.zig");
 const remove_cmd = @import("cmd/remove.zig");
+const mv_cmd = @import("cmd/mv.zig");
 
 /// Global flags that can be passed to all commands
 pub const GlobalFlags = struct {
@@ -83,6 +84,7 @@ pub fn main() !void {
         .push => push_cmd.execute(gpa, &iter) catch return,
         .status => status_cmd.execute(gpa, &iter) catch return,
         .remove => remove_cmd.execute(gpa, &iter) catch return,
+        .mv => mv_cmd.execute(gpa, &iter) catch return,
     }
 }
 

@@ -1,17 +1,7 @@
 const std = @import("std");
 const clap = @import("clap");
 
-pub const Command = enum {
-    help,
-    init,
-    add,
-    resolve,
-    sync,
-    pull,
-    status,
-    push,
-    remove,
-};
+pub const Command = enum { help, init, add, resolve, sync, pull, status, push, remove, mv };
 
 pub const main_parsers = .{
     .command = clap.parsers.enumeration(Command),

@@ -260,4 +260,14 @@ pub const Parser = struct {
 
         return line;
     }
+
+    pub fn loadConfig(alloc: std.mem.Allocator) !SubmoduleConfig {
+        var parser = Parser.init(alloc);
+        // defer parser.deinit();
+        const config = parser.parseFile("Saltfile") catch |err| {
+            try std.io.getStdErr().writer().print("Error: Failed to load Saltfile {}\n", .{err});
+            return err;
+        };
+        return config;
+    }
 };

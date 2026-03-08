@@ -456,6 +456,23 @@ pub fn removeSubmoduleState(
     try state.save(allocator);
 }
 
+/// Rename a submodule (for mv command)
+pub fn renameSubmoduleState(
+    state: *SyncState,
+    allocator: Allocator,
+    old_name: []const u8,
+    new_name: []const u8,
+) !void {
+    if (state.submodules.fetchRemove(old_name)) |kv| {
+        allocator.free(kv.key);
+        const name_copy = try allocator.dupe(u8, new_name);
+        try state.submodules.put(name_copy, kv.value);
+        try state.save(allocator);
+    } else {
+        return error.NoState;
+    }
+}
+
 test "SyncState init and deinit" {
     const allocator = std.testing.allocator;
     var state = SyncState.init(allocator);
